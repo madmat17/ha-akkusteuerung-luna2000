@@ -1,12 +1,7 @@
-# Prognosebasierte & Manuelle Steuerung für Homeassistant von SMA STP SE Hybrid-Wechselrichter #
+# Prognosebasierte & Manuelle Steuerung für Huawei Luna2000 Akkus über HomeAssistant #
 
 **DISCLAMER: Alles auf eigene Gefahr! Ich übernehme keine Verantwortung für Schäden oder Probleme die hiermit entstehen.**
-Dieses Projekt wird in keinster Weise von der Firma SMA begleitet oder supported.
-
-**Neue Betafirma seit 16.07.2024 stellt wieder die alte Funktionalität her, dass der Wechselrichter direkt über Modbus gesteurt werden kann**
-Grid Guard Code usw. nicht mehr notwendig!
-
-Noch kein Tibber? 50€ Bonus für mich & dich: https://invite.tibber.com/14sk9m15
+Dieses Projekt wird in keinster Weise von der Firma Huawei begleitet oder supported.
 
 (work in progress, noch nicht vollständig!)
 
@@ -14,11 +9,11 @@ Noch kein Tibber? 50€ Bonus für mich & dich: https://invite.tibber.com/14sk9m
 
 Was macht das hier eigentlich?
 
-Akkuladesteuerung über den WR selbst (wenn man die Updates früh genug deaktiviert hat ODER die neue Betafirmware für den SHM 2.0 hat)
+Akkuladesteuerung über den WR via Modbus TCP
 
 Ein Part ist die Reine Akku Lade-/Entladesteuerung die man manuell auswählen kann, der andere Part die Opti-Automatik welche die Ladestärke auf 0.2C (oder einen gewünschte Ladestärke) begrenzt, den Akku morgens erstmal auf 50% lädt und dann pausiert bis die gewünschte Restproduktionsprognose erreicht ist. Dann wird der Akku bis 90% weiter mit 0.2C beladen, danach mit 1kW bis 100%.
 
-Es sollte die SMA Integration von HA eingerichtet werde um den SoC des Akkus auslesen zu können sowie ein Solcast Account für die Prognose der PV-Erträge!
+Hilfreich ist die Huawei Solar Integration (https://github.com/wlcrs/huawei_solar), welche sehr einfach die benötigten Entitäten und Sensoren zur verfügung stellt, sowie ein Solcast Account für die Prognose der PV-Erträge!
 
 **opti-automatik.yaml** - Hiermit wird über den SHM 2.0 und freigeschaltetem GGC der Akku mittels der weiteren Automation gezielt geladen, pausiert und zuende geladen mit 0.2C bzw. 1kW. 
 
