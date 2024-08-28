@@ -56,6 +56,7 @@ Man benötigt einen Sensor der den möglichen Überschuss für den Akku berechne
             and (states('sensor.power_meter_active_power')|is_number) }}
 
 **Beispiel: Netzbezug**
+
     - unique_id: power_meter_netzbezug
       device_class: power
       state_class: measurement
