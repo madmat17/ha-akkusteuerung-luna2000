@@ -2,14 +2,12 @@ template:
   - sensor:
       - name: "EPEX Spot Rate Price Level"
         state: >
-          {% set c = states('sensor.epex_spot_data_price') | float(0) %}
-          {% set m = states('sensor.epex_spot_data_median_price') | float(0) %}
-          {% set r = c/m %}
+          {% set r = states('sensor.epex_spot_data_quantile') | float(0) %}
 
-          {% if r >= 1.4 %} VERY_EXPENSIVE
-          {% elif 1.15 <= r < 1.4 %} EXPENSIVE
-          {% elif 0.9 <= r < 1.15 %} NORMAL
-          {% elif 0.6 <= r < 0.9 %} CHEAP
-          {% elif r <= 0.6 %} VERY_CHEAP
+          {% if r >= 0.8 %} VERY_EXPENSIVE
+          {% elif 0.6 <= r < 0.8 %} EXPENSIVE
+          {% elif 0.4 <= r < 0.6 %} NORMAL
+          {% elif 0.2 <= r < 0.4 %} CHEAP
+          {% elif r <= 0.2 %} VERY_CHEAP
 
           {% endif %}
