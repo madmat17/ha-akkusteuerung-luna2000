@@ -1,4 +1,4 @@
-# Prognosebasierte & Manuelle Steuerung für Huawei Luna2000 Akkus über HomeAssistant #
+    # Prognosebasierte & Manuelle Steuerung für Huawei Luna2000 Akkus über HomeAssistant #
 
 **DISCLAMER: Alles auf eigene Gefahr! Ich übernehme keine Verantwortung für Schäden oder Probleme die hiermit entstehen.**
 Dieses Projekt wird in keinster Weise von der Firma Huawei begleitet oder supported.
@@ -34,44 +34,71 @@ Den Eintrag aus der configuration.yaml bei Homeassistant in die gleichnamige ein
 
 Man benötigt einen Sensor der den möglichen Überschuss für den Akku berechnet und einen für den aktuellen Hausverbrauch. 
 
-**Zum Beispiel für den möglichen Akku-Ladeüberschuss:**
 
-    - unique_id: maximaler_ueberschuss_akkuladung
+**Beispiel: Hausverbrauch:**
+
+    - unique_id: hausverbrauchsleistung
       device_class: power
       state_class: measurement
-      name: Maximaler Ueberschuss fuer Akkuladung Watt
+      name: Hausverbrauchsleistung
       unit_of_measurement: W
-      state: "{{ (states('sensor.inverter_eingangsleistung') | float) - (states('sensor.hausverbrauchsleistung') | float) - (states('sensor.power_meter_netzbezug') | float) + (states('sensor.wallbox_ladeleistung')  | float ) }}"
+      state: >-
+        {% set inv_active_power = states('sensor.inverter_active_power')|float(0) %}
+        {% set pm_active_power = states('sensor.power_meter_active_power')|float(0) %}
+        {% set house_power =  (inv_active_power - pm_active_power)|float(0)|round(0) %}
+        {% if house_power > 0 %}
+          {{ house_power }}
+        {% else %}
+          {{ states('sensor.house_consumption_power')|float(0) }}
+        {% endif %}
+      availability: >-
+        {{ (states('sensor.inverter_active_power')|is_number)
+            and (states('sensor.power_meter_active_power')|is_number) }}
 
-**Zum Beispiel für den PV-Überschuss um ggf. die 70% Kappung zu erkennen**
-
-    - unique_id: akkusteuerung_ueberschuss_pv
+**Beispiel: Netzbezug**
+    - unique_id: power_meter_netzbezug
       device_class: power
       state_class: measurement
-      name: Ueberschuss PV Watt
+      name: "Power meter Netzbezug"
       unit_of_measurement: W
-      state: "{{ (states('sensor.pv_generation_komplett_watt') | float(0) - (states('sensor.home_energy_usage_watt') | float) - (states('sensor.sn_3017XXXXXX_metering_power_absorbed') | float) )  }}"
+      state: >-
+        {% set pm_wirkleistung = states('sensor.power_meter_wirkleistung') | float(0) %}
+        {% if pm_wirkleistung < 0 %}
+          {{ -pm_wirkleistung }}
+        {% else %}
+          {{ 0 }}
+        {% endif %}
 
-**Zum Beispiel für den Hausverbrauch:**
+**Beispiel: PV-Überschuss**
 
-    - unique_id: home_energy_usage_w
+    - unique_id: inverter_pv_ueberschuss
       device_class: power
       state_class: measurement
-      name: Home Energy Usage Watt
+      name: "Inverter PV Überschuss"
       unit_of_measurement: W
-      state: "{{ (states('sensor.sn_3017XXXXXX_metering_power_absorbed') | float) + (states('sensor.sn_3017XXXXXX_grid_power') | float) - (states('sensor.sn_3017XXXXXX_metering_power_supplied') | float)}}"
+      state: "{{ (states('sensor.inverter_eingangsleistung') | float) - (states('sensor.hausverbrauchsleistung') | float) - (states('sensor.power_meter_netzbezug') | float) }}"
 
-**Hier als Extra zwei Sensoren die Wirkungsgrad und Akku_Zyklen in HA trackien**
+**Beispiel: PV-Überschuss für Akku-Ladung (PV-Überschuss zzgl. aktueller Wallbox-Leistung):**
 
-    - unique_id: byd_akku_wirkungsgrad_lade_entlade
-      name: BYD Akku Wirkungsgrad Ladung und Entladung
-      unit_of_measurement: factor
-      state: "{{ ((states('sensor.sn_3017XXXXXX_battery_discharge_total') | float) / (states('sensor.sn_3017XXXXXX_battery_charge_total') | float) * 100) | round(2) }}"
+    - unique_id: inverter_maximaler_ueberschuss_fuer_akkuladung
+      device_class: power
+      state_class: measurement
+      name: Maximaler "Inverter Maximaler Überschuss für Akkuladung"
+      unit_of_measurement: W
+      state: "{{ (states('sensor.inverter_pv_ueberschuss') | float) + (states('sensor.wallbox_ladeleistung')  | float ) }}"
 
-    - unique_id: byd_akku_zyklen
-      name: BYD Akku Zyklen
-      unit_of_measurement: factor
-      state: "{{ (((((states('sensor.sn_3017XXXXXX_battery_discharge_total') | float) + (states('sensor.sn_3017XXXXXX_battery_charge_total') | float)) / 100 ) * (states('sensor.sn_3017XXXXXX_battery_capacity_total')) | float) / (2*10.2) ) | round(1) }}"
+
+**Hier als Extra zwei Sensoren die Wirkungsgrad und Akku-Zyklen in HA trackien**
+
+    - unique_id: battery_wirkungsgrad_entladung_vs_ladung
+      device_class: power_factor
+      name: "Battery Wirkungsgrad (Entladung vs. Ladung)"
+      unit_of_measurement: %
+      state: "{{ ((states('sensor.battery_gesamtentladung') | float) / (states('sensor.battery_gesamtladung') | float) * 100) | round(2) }}"
+
+    - unique_id: battery_kalkulierte_ladezyklen
+      name: "Battery kalkulierte Ladezyklen"
+      state: "{{ (((states('sensor.battery_gesamtentladung') | float) + (states('sensor.battery_gesamtladung') | float)) / ((states('input_number.battery_speicherkapazitaet') | float) *2)) | round(0) }}"
 
 
 dieser HA-Helfer zur Auswahl des Akku-Modus muss angelegt werden:
