@@ -1,4 +1,4 @@
-    # Prognosebasierte & Manuelle Steuerung für Huawei Luna2000 Akkus über HomeAssistant #
+# Prognosebasierte & Manuelle Steuerung für Huawei Luna2000 Akkus über HomeAssistant #
 
 **DISCLAMER: Alles auf eigene Gefahr! Ich übernehme keine Verantwortung für Schäden oder Probleme die hiermit entstehen.**
 Dieses Projekt wird in keinster Weise von der Firma Huawei begleitet oder supported.
