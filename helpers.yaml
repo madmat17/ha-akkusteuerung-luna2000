@@ -3,7 +3,7 @@ template:
       - name: "EPEX Spot Rate Price Level"
         state: >
           {% set c = states('sensor.epex_spot_data_price') | float(0) %}
-          {% set m = states('sensor.epex_spot_data_median_price') | float(0)%}
+          {% set m = states('sensor.epex_spot_data_median_price') | float(0) %}
           {% set r = c/m %}
 
           {% if r >= 1.4 %} VERY_EXPENSIVE
