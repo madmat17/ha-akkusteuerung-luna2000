@@ -41,7 +41,7 @@ Man benötigt einen Sensor der den möglichen Überschuss für den Akku berechne
       state_class: measurement
       name: Maximaler Ueberschuss fuer Akkuladung Watt
       unit_of_measurement: W
-      state: "{{ (states('sensor.pv_generation_komplett_watt') | float) - (states('sensor.home_energy_usage_watt') | float) - (states('sensor.sn_xxxxxxx_metering_power_absorbed') | float) + ((states('sensor.goecharger_wallbox_hinten_p_all')  | float )* 1000)  }}"
+      state: "{{ (states('sensor.inverter_eingangsleistung') | float) - (states('sensor.hausverbrauchsleistung') | float) - (states('sensor.power_meter_netzbezug') | float) + (states('sensor.wallbox_ladeleistung')  | float ) }}"
 
 **Zum Beispiel für den PV-Überschuss um ggf. die 70% Kappung zu erkennen**
 
