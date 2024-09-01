@@ -9,17 +9,19 @@ Die hier gezeigte Lösung ist sehr stark an die Steuerung von @Optic00 (https://
 
 (work in progress, noch nicht vollständig!)
 
-# Einleitung #
+## Einleitung 
 
 Warum sollte eine Steuerung zur schonenden Ladung eines Akkus sinnvoll sein?
 Ganz einfach: Damit man länger etwas von seinem Akku hat.
 
+### Hintergrund: 
 Beim Luna2000 von Huawei handelt es sich um einen Lithium-Ionen-Akku, welcher die Eigenschaft hat, dass verschiedene Ladegeschwindigkeiten (bzw. Ladeströme) den Akku stressen und schneller altern lassen können.
 Das heißt, dass man die Lebensdauer es Akkus positiv beeinflussen kann, wenn man die Ladeleistung abhängig vom jeweiligen SoC (= State of Charge, Ladezustand) regelt. Dabei sind folgende Eckpunkte zu berücksichtigen:
-#### 1. **Schonendes Laden bei hohen SoC**:
+
+#### 1. **Schonendes Laden bei hohen SoC**: 
 Wenn der Akku bereits einen hohen Ladezustand (z.B. über 80 %) hat, ist es ratsam, die Ladeleistung zu reduzieren. Das Laden bei hohen SoC-Werten erzeugt mehr Stress auf die Elektroden des Akkus, was die Degradation beschleunigen kann.
 
-#### 2. **Höhere Ladeleistung bei niedrigem SoC**:
+#### 2. **Höhere Ladeleistung bei niedrigem SoC**: 
 Bei niedrigem SoC (z.B. unter 30 %) kann der Akku normalerweise höhere Ladeleistungen vertragen, ohne dass dies die Lebensdauer stark beeinträchtigt. In diesem Bereich ist der Innenwiderstand geringer, und der Akku kann effizienter laden.
 
 #### 3. **Vermeiden von 100 %-Ladungen**:
@@ -34,216 +36,179 @@ Die Ladeleistung sollte auch abhängig von der Temperatur geregelt werden. Bei n
 #### 6. **Adaptive Ladeverfahren**:
 Einige moderne Ladegeräte und Akkumanagementsysteme nutzen adaptive Ladeverfahren, die den Ladeprozess dynamisch an den aktuellen SoC und die Temperatur anpassen, um die Lebensdauer des Akkus zu maximieren.
 
-Durch die Anpassung der Ladeleistung in Abhängigkeit vom SoC kannst du also die Belastung des Akkus minimieren und seine Lebensdauer verlängern. Es ist jedoch wichtig, dass dies in einem gut ausbalancierten Lade- und Energiemanagementsystem erfolgt, um eine optimale Leistung und Lebensdauer zu gewährleisten.
+### Empfohlene Ladeleistungen: 
+Die Wahl des richtigen C-Werts, also des Verhältnisses zwischen Ladeleistung und Nennkapazität des Akkus, ist entscheidend, um die Lebensdauer des Akkus zu maximieren. 0,2C zB sind 20% der Nennkapazität. Beträgt die Nennkapazität 5.000 Wh, dann entspricht die 0,2C einer Ladeleistung von 1.000 W.
+Empfehlungen für die jeweiligen Ladestände:
+
+#### 1. **SoC von 0 % bis 10 %:**
+
+-   **Empfohlener C-Wert:** **0,2C bis 0,3C**
+-   **Begründung:** In diesem Bereich ist der Akku empfindlicher, daher ist eine moderate Ladeleistung wichtig, um die Lebensdauer zu schonen, während dennoch eine akzeptable Ladegeschwindigkeit erreicht wird.
+
+#### 2. **SoC von 10 % bis 30 %:**
+
+-   **Empfohlener C-Wert:** **0,3C bis 0,5C**
+-   **Begründung:** Der Akku kann in diesem SoC-Bereich eine höhere Ladeleistung vertragen, ohne dass dies die Lebensdauer wesentlich beeinträchtigt. 0,5C bietet eine gute Balance zwischen schneller Ladung und Schonung des Akkus.
+
+#### 3. **SoC von 30 % bis 80 %:**
+
+-   **Empfohlener C-Wert:** **0,5C bis 0,7C**
+-   **Begründung:** Hier kann der Akku effizient und relativ schnell geladen werden. Ein C-Wert von bis zu 0,7C bietet eine gute Ladegeschwindigkeit und ist immer noch schonend für den Akku.
+
+#### 4. **SoC von 80 % bis 100 %:**
+
+-   **Empfohlener C-Wert:** **0,2C bis 0,3C**
+-   **Begründung:** In diesem Bereich wird die Ladegeschwindigkeit typischerweise reduziert, um die Lebensdauer zu maximieren. Eine geringere Ladeleistung hilft, die Degradation zu minimieren, die bei hohen SoC-Werten stärker auftritt.
+
+#### Hinweis zur Temperaturabhängigkeit:
+
+-   **Bei niedrigen Temperaturen (< 10°C):** C-Wert um 0,1C bis 0,3C senken.
+-   **Bei hohen Temperaturen (> 35°C):** ebenfalls C-Wert reduzieren, um Überhitzung zu vermeiden.
+
+### Umsetzung:
+**Ladeleistungen:**  Diese können wir beeinflussen, indem wir die Ladeleistung über Modbus begrenzen.
+
+**Vermeiden von 100%-Ladungen:** Das ist ein zweischneidiges Thema. Der Luna2000 benötigt immer wieder eine Ladung auf 100%, um sich kalibrieren zu können. Was eher sehr schädlich für die Li-On-Akkus ist, ist ein permanenter Ladestand auf 100%. Daher regelt diese Automation das Vollladen des Akkus so, dass von 80% auf 100% erst gegen Ende des Tages (= Sonnenstunden) geladen wird
+
+**Temperatur:** Auf die Temperatur kann man kaum eingehen (eine optimale Ladetemperatur läge bei <35°C), da der Luna2000 scheinbar nicht die Zelltemperatur, sondern die Temperatur der internen Ladeelektronik meldet. Da der Luna2000 zudem aktiv gekühlt ist, erlaube ich mir das Temperatur-Thema zu vernachlässigen
 
 
 # Anleitung # 
 
-Was macht das hier eigentlich?
+Was macht die Automation in diesem Zusammenhang?
 
-Akkuladesteuerung über den WR via Modbus TCP
+Akkuladesteuerung über den WR via Modbus TCP in Abhängigkeit gesetzter Parameter und dem noch zu erwartenden PV-Ertrag (bzw. dem zu erwartetenden Überschuss aus dem PV-Ertrag).
 
-Ein Part ist die Reine Akku Lade-/Entladesteuerung die man manuell auswählen kann, der andere Part die Opti-Automatik welche die Ladestärke auf 0.2C (oder einen gewünschte Ladestärke) begrenzt, den Akku morgens erstmal auf 50% lädt und dann pausiert bis die gewünschte Restproduktionsprognose erreicht ist. Dann wird der Akku bis 90% weiter mit 0.2C beladen, danach mit 1kW bis 100%.
+Hierbei können die folgenden Parameter eingestellt werden...
 
-Hilfreich ist die Huawei Solar Integration (https://github.com/wlcrs/huawei_solar), welche sehr einfach die benötigten Entitäten und Sensoren zur verfügung stellt, sowie ein Solcast Account für die Prognose der PV-Erträge!
+**Automatische Akkusteuerung AN/AUS:** Definiert, ob die Automatik überhaupt genutzt werden soll
 
-**opti-automatik.yaml** - Hiermit wird über den SHM 2.0 und freigeschaltetem GGC der Akku mittels der weiteren Automation gezielt geladen, pausiert und zuende geladen mit 0.2C bzw. 1kW. 
+**Wallbox ignorieren:** Gibt an, ob die Ladeleistung einer ggf. genutzten Wallbox aus den Werten herausgerechnet werden soll. Das ist besonders dann sinnvoll, wenn die Wallbox selbst basierend auf Ertrag und Netzbezug/-einspeisung gesteuert wird und dem Hausakku in dieser Steuerung Vorrang eingeräumt wird.
 
-**sma-se-akku-steuerung.yaml** - Falls man den WR noch direkt ansteuern kann und die letzten Updates nicht hat / die neue Beta Firmware (siehe oben) kann man diese Steuer-Automatik nutzen.
+**Wöchentlich vollladen:** Mit dieser Option wird der Akku under Zuhilfenahme von Netzstrom vollgeladen, falls die letzte Vollladung 7 Tage zurückliegt. Das kann u.U. in den Wintermonaten gut und sinnvoll sein. Mit der Zusatzoption des **preisoptimierten Vollladens** geschieht das Vollladen mit Netzstrom zu den Zeitpunkten, an denen der Strom besonders günstig ist (das ist vor allem bei stündlichen Tarifen interessant).
 
-**configuration.yaml** - Eintrag zum Wechselrichter. Den Sensor für die Temperatur bitte mitnehmen, ohne Sensor funktioniert die Modbus Integration nicht zuverlässig.
-
-Wer erstmal nur die reine Akkusteuerung möchte, braucht nur die "sma-se-akku-steuerung.yaml" als Automation anlegen und u.g. Helfer und Überschuss Akkuladung anlegen.
-
-**ToDo:**
-- Akku im Winter mindestens 1x die Woche automatisch auf 100% Laden
-- Evtl. Ladegeschwindigkeit ab 95-98% auf 500 Watt begrenzen
-- SBS Version
-- HACS Version für die reine Akkusteuerung
-- English Version of this?
-
-Den Eintrag aus der configuration.yaml bei Homeassistant in die gleichnamige einfügen. 
-
-Man benötigt einen Sensor der den möglichen Überschuss für den Akku berechnet und einen für den aktuellen Hausverbrauch. 
+**Schonungsmodus:** Über den Schonungsmodus wird festgelegt, welche C-Werte (Ladeleistung in Abhängig zur Nennkapazität) bei welchem SoC zum Einsatz kommt. Zu Auswahl stehen "schonend" und "sehr schonend".
 
 
-**Beispiel: Hausverbrauch:**
+## **Abhängigkeiten & Inhalte**
+Folgende Integrationen werden benötigt:
 
-    - unique_id: hausverbrauchsleistung
-      device_class: power
-      state_class: measurement
-      name: Hausverbrauchsleistung
-      unit_of_measurement: W
-      state: >-
-        {% set inv_active_power = states('sensor.inverter_active_power')|float(0) %}
-        {% set pm_active_power = states('sensor.power_meter_active_power')|float(0) %}
-        {% set house_power =  (inv_active_power - pm_active_power)|float(0)|round(0) %}
-        {% if house_power > 0 %}
-          {{ house_power }}
-        {% else %}
-          {{ states('sensor.house_consumption_power')|float(0) }}
-        {% endif %}
-      availability: >-
-        {{ (states('sensor.inverter_active_power')|is_number)
-            and (states('sensor.power_meter_active_power')|is_number) }}
+ - Huawei Solar Integration (https://github.com/wlcrs/huawei_solar)
+ - HA Solcast PV Solar Forecast Integration (https://github.com/BJReplay/ha-solcast-solar)
 
-**Beispiel: Netzbezug**
+**/packages/akkusteuerung-entities.yaml** - Beinhaltet die Entitäten, welche für die Akkusteuerung benötigt werden. 
+**/packages/akkusteuerung-automation.yaml** - Beinhaltet die Automation zur Steuerung.
+**/collaterals/diagramm.pdf** - Stellt die Steuerlogik dar
 
-    - unique_id: power_meter_netzbezug
-      device_class: power
-      state_class: measurement
-      name: "Power meter Netzbezug"
-      unit_of_measurement: W
-      state: >-
-        {% set pm_wirkleistung = states('sensor.power_meter_wirkleistung') | float(0) %}
-        {% if pm_wirkleistung < 0 %}
-          {{ -pm_wirkleistung }}
-        {% else %}
-          {{ 0 }}
-        {% endif %}
-
-**Beispiel: PV-Überschuss**
-
-    - unique_id: inverter_pv_ueberschuss
-      device_class: power
-      state_class: measurement
-      name: "Inverter PV Überschuss"
-      unit_of_measurement: W
-      state: "{{ (states('sensor.inverter_eingangsleistung') | float) - (states('sensor.hausverbrauchsleistung') | float) - (states('sensor.power_meter_netzbezug') | float) }}"
-
-**Beispiel: PV-Überschuss für Akku-Ladung (PV-Überschuss zzgl. aktueller Wallbox-Leistung):**
-
-    - unique_id: inverter_maximaler_ueberschuss_fuer_akkuladung
-      device_class: power
-      state_class: measurement
-      name: Maximaler "Inverter Maximaler Überschuss für Akkuladung"
-      unit_of_measurement: W
-      state: "{{ (states('sensor.inverter_pv_ueberschuss') | float) + (states('sensor.wallbox_ladeleistung')  | float ) }}"
-
-
-**Hier als Extra zwei Sensoren die Wirkungsgrad und Akku-Zyklen in HA trackien**
-
-    - unique_id: battery_wirkungsgrad_entladung_vs_ladung
-      device_class: power_factor
-      name: "Battery Wirkungsgrad (Entladung vs. Ladung)"
-      unit_of_measurement: %
-      state: "{{ ((states('sensor.battery_gesamtentladung') | float) / (states('sensor.battery_gesamtladung') | float) * 100) | round(2) }}"
-
-    - unique_id: battery_kalkulierte_ladezyklen
-      name: "Battery kalkulierte Ladezyklen"
-      state: "{{ (((states('sensor.battery_gesamtentladung') | float) + (states('sensor.battery_gesamtladung') | float)) / ((states('input_number.battery_speicherkapazitaet') | float) *2)) | round(0) }}"
-
-
-dieser HA-Helfer zur Auswahl des Akku-Modus muss angelegt werden:
-
-<img width="322" alt="image" src="https://github.com/user-attachments/assets/be8c061f-681d-4acb-bbc4-47f3ca9a9a49">
-
-Dann noch einen Schalter **akku_opti_automatik** ob diese Ladeoptimerung überhaupt laufen darf anlegen:
-
-Vier Input Numbers anlegen, Minimaler Wert 100, maximaler Wert 10000 (Watt) für:
-
-- input_number.akkusteuerung_ladestaerke_soll und 
-- input_number.akkusteuerung_entladestaerke_soll
-- input_number.akkusteuerung_02c_ladestaerke
-
-Dieser Helfer sollte den Wert oder einen leicht niedrigeren Wert enthalten der die 70% Abregelung enthält. (z.B. 7000 Watt bei einer 10kW Watt Anlage oder leicht drunter, etwa 6800 Watt)
-
-- input_number.akkusteuerung_wr_70proz_ueberschuss_grenze
-
-Dieser Helfer bekommt den Wert der maximalen AC Einspeiseleistung des Wechselrichters. Bei einem SMA STP SE 10.0 also 10000 Watt bzw. leicht drunter etwa 9900. Die Soll-Ladestärke wird dann auf 100 Watt gesetzt und so autoamtisch der AC-Überschuss in den Akku geladen (falls dieser noch nicht voll ist)
-
-- input_number.akkusteuerung_wr_ac_ueberschuss_grenze
-
-für den letzten z.B. 1-100kWh, dies steuert die Schwelle ab wann der Akku von 50% aufwärts geladen wird.
-
-- input_number.akkusteuerung_ab_welchem_restertrag_vollladen
-
-<img width="500" alt="image" src="https://github.com/Optic00/ha-smase-akkusteuerung/assets/20187253/6a1ae098-817a-4029-b732-442eeee4ae6d">
-
-So schaut es im HA aktuell aus. Hab noch einen Dummy-Schalter für den Fall das die Module/Anlage mal ausfällt. Da ist aber noch nichts aktives in der Automation enthalten.
-
+Ein Controldashboard (u.a. unter Verwendung der HA-Badges) könnte wie folgt aussehen:
 <img width="505" alt="image" src="https://github.com/user-attachments/assets/82cfe4d3-9034-4cf5-953c-65b624f5250e">
 
-    type: vertical-stack
+
+
+    icon: mdi:battery-heart-variant
+    path: akkusteuerung
+    title: Akkusteuerung
     cards:
-      - type: custom:mushroom-title-card
-        title: Akkusteuerung SMA STP-SE
-      - type: custom:mushroom-chips-card
-        chips:
-          - type: conditional
-            conditions:
-              - condition: numeric_state
-                entity: sensor.sn_30XXXXXXXX_battery_power_discharge_total
-                above: 0.001
-            chip:
-              type: template
-              entity: sensor.sn_30XXXXXXXX_battery_power_discharge_total
-              content: '{{( states(entity) | float / 1000) | round(2) }}  kW '
-              icon: mdi:battery-minus
-              icon_color: red
-          - type: conditional
-            conditions:
-              - condition: numeric_state
-                entity: sensor.sn_30XXXXXXXX_battery_power_charge_total
-                above: 0.001
-            chip:
-              type: entity
-              entity: sensor.sn_30XXXXXXXX_battery_power_charge_total
-              icon: mdi:battery-positive
-              icon_color: green
-          - type: entity
-            entity: sensor.sn_30XXXXXXXX_battery_soc_total
-            icon_color: blue
-          - type: template
-            entity: sensor.byd_12_8_akku_wirkungsgrad_ladung_und_entladung
-            content: '{{ states(entity) | round (1)}}% η'
-            icon: mdi:vector-difference
-            icon_color: orange
-          - type: template
-            entity: sensor.byd_12_8_akku_zyklen
-            content: '{{ states(entity)}}'
-            icon: mdi:counter
-            icon_color: yellow
-          - type: entity
-            entity: sensor.sn_30XXXXXXXX_battery_temp_a
-            icon: mdi:battery-charging-wireless-outline
-          - type: entity
-            entity: sensor.sma_stp_se_temperatur
-            icon: mdi:power-socket-it
-      - type: custom:mushroom-select-card
-        entity: input_select.akkusteuerung_sma_wr
-        name: Akkusteuerung
-        primary_info: name
-        secondary_info: last-changed
-      - type: tile
-        entity: input_boolean.akku_opti_automatik
-      - type: tile
-        entity: input_boolean.akku_nach_preis_laden
-      - type: tile
-        entity: input_boolean.pv_module_nicht_verfugbar
-        name: PV-Module NA (z.B. Schnee bedeckt)
-      - type: horizontal-stack
+      - type: vertical-stack
         cards:
-          - type: tile
-            entity: sensor.sn_30XXXXXXXX_battery_discharge_total
-            name: Entladen Watt
-          - type: tile
-            entity: sensor.sn_30XXXXXXXX_battery_charge_total
-            name: Laden Watt
-      - type: entities
-        entities:
-          - entity: input_number.akkusteuerung_ladestaerke_soll
-          - entity: input_number.akkusteuerung_entladestaerke_soll
-            name: Entladestärke
-          - entity: input_number.akkusteuerung_ab_welchem_restertrag_vollladen
-            name: Restladeschwelle
-          - entity: input_number.akkusteuerung_02c_ladestaerke
-            name: Ladestärke 0.2C
-          - entity: input_number.akkusteuerung_wr_ac_ueberschuss_grenze
-            name: WR AC-Grenze
-          - entity: input_number.akkusteuerung_wr_70proz_ueberschuss_grenze
-            name: 70% Grenze
-          - entity: sensor.house_battery_runtime_raw
-            name: Akkulaufzeit
-          - entity: sensor.ueberschuss_pv_watt
+          - type: entities
+            entities:
+              - entity: input_boolean.battery_akkusteuerung_automatik
+                name: Automatische Akkusteuerung
+                secondary_info: last-changed
+                icon: mdi:refresh-auto
+            state_color: true
+          - type: entities
+            entities:
+              - entity: input_boolean.battery_akkusteuerung_wallbox_ignorieren
+                name: Wallbox ignorieren
+                secondary_info: |
+                  {{ states('sensor.battery_akkusteuerung_pv_uberschuss') }}
+            state_color: true
+            visibility:
+              - condition: state
+                entity: input_boolean.battery_akkusteuerung_automatik
+                state: "on"
+          - type: entities
+            entities:
+              - entity: input_boolean.battery_akkusteuerung_woechentlich_vollladen
+                name: Wöchentlich vollladen
+                secondary_info: last-changed
+                icon: mdi:calendar-clock-outline
+            state_color: true
+            visibility:
+              - condition: state
+                entity: input_boolean.battery_akkusteuerung_automatik
+                state: "on"
+          - type: entities
+            entities:
+              - entity: input_boolean.battery_akkusteuerung_vollladung_preisoptimiert
+                name: Preisoptimiert volladen
+                secondary_info: last-changed
+                icon: mdi:currency-eur
+            state_color: true
+            visibility:
+              - condition: state
+                entity: input_boolean.battery_akkusteuerung_automatik
+                state: "on"
+              - condition: state
+                entity: input_boolean.battery_akkusteuerung_woechentlich_vollladen
+                state: "on"
+          - type: entities
+            entities:
+              - entity: input_select.battery_akkusteuerung_schonungsmodus
+                name: Schonungsmodus
+            state_color: false
+          - type: horizontal-stack
+            cards:
+              - type: entity
+                entity: sensor.battery_gesamtentladung
+                name: Gesamtentladung
+                state_color: false
+              - type: entity
+                entity: sensor.battery_gesamtladung
+                name: Gesamtladung
+          - type: entities
+            entities:
+              - entity: sensor.battery_akkusteuerung_pv_uberschuss
+                name: PV-Überschuss
+              - entity: sensor.battery_akkusteuerung_pv_uberschuss_ohne_wallbox
+                name: PV-Überschuss (exkl. Wallbox)
+              - entity: sensor.battery_akkusteuerung_soll_ladeleistung
+                name: Ladeleistung Soll
+                icon: mdi:bullseye-arrow
+              - entity: sensor.battery_ladeleistung
+                name: Ladeleistung Aktuell
+                icon: mdi:bullseye
+              - entity: sensor.battery_akkusteuerung_restladezeit_hh_mm
+                name: Restladezeit
+                icon: mdi:battery-clock-outline
+              - entity: sensor.battery_akkusteuerung_tage_seit_100_soc
+                name: Tage seit 100% SoC
+            state_color: false
+    badges:
+      - type: entity
+        entity: sensor.battery_lade_entladeleistung
+        show_entity_picture: false
+        color: green
+      - type: entity
+        entity: sensor.battery_batterieladung
+        icon: mdi:battery-high
+      - type: entity
+        entity: sensor.battery_wirkungsgrad_entladung_vs_ladung
+        icon: mdi:vector-difference
+        color: orange
+        state_content: "{{ states(entity) | round (1)}}% η"
+      - type: entity
+        entity: sensor.battery_kalkulierte_ladezyklen
+        icon: mdi:counter
+        color: yellow
+      - type: entity
+        entity: sensor.battery_battery_1_temperature
+        icon: mdi:battery-alert-variant
+        color: light-grey
+      - type: entity
+        entity: sensor.inverter_interne_temperatur
+        icon: mdi:power-socket-it
+        color: light-grey
 
