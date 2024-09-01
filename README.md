@@ -98,6 +98,7 @@ Folgende Integrationen werden benötigt:
 
 **/packages/akkusteuerung-entities.yaml** - Beinhaltet die Entitäten, welche für die Akkusteuerung benötigt werden. 
 **/packages/akkusteuerung-automation.yaml** - Beinhaltet die Automation zur Steuerung.
+
 **[/collaterals/diagramm.pdf](/collaterals/diagramm.pdf)** - Stellt die Steuerlogik dar
 
 Ein Controldashboard (u.a. unter Verwendung der HA-Badges) könnte wie folgt aussehen:
