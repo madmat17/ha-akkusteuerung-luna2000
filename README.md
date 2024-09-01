@@ -1,9 +1,41 @@
-# Prognosebasierte & Manuelle Steuerung für Huawei Luna2000 Akkus über HomeAssistant #
+
+# Prognosebasierte Steuerung zur schonenden Ladung von Huawei Luna2000 Akkus über HomeAssistant #
 
 **DISCLAMER: Alles auf eigene Gefahr! Ich übernehme keine Verantwortung für Schäden oder Probleme die hiermit entstehen.**
-Dieses Projekt wird in keinster Weise von der Firma Huawei begleitet oder supported.
+Ich stehe in keinerlei zusammenhang mit Huawei. Dieses Projekt wird in keinster Weise von der Firma Huawei begleitet oder supported.
+Desweiteren wird von mir **KEIN SUPPORT** geleistet. Ich teile hier lediglich, was ich für mein Szenario aufgebaut hatte.
+
+Die hier gezeigte Lösung ist sehr stark an die Steuerung von @Optic00 (https://github.com/Optic00/ha-akkusteuerung-sma) angelehnt. Credits für die Vorarbeit gehen an Optic00!
 
 (work in progress, noch nicht vollständig!)
+
+# Einleitung #
+
+Warum sollte eine Steuerung zur schonenden Ladung eines Akkus sinnvoll sein?
+Ganz einfach: Damit man länger etwas von seinem Akku hat.
+
+Beim Luna2000 von Huawei handelt es sich um einen Lithium-Ionen-Akku, welcher die Eigenschaft hat, dass verschiedene Ladegeschwindigkeiten (bzw. Ladeströme) den Akku stressen und schneller altern lassen können.
+Das heißt, dass man die Lebensdauer es Akkus positiv beeinflussen kann, wenn man die Ladeleistung abhängig vom jeweiligen SoC (= State of Charge, Ladezustand) regelt. Dabei sind folgende Eckpunkte zu berücksichtigen:
+#### 1. **Schonendes Laden bei hohen SoC**:
+Wenn der Akku bereits einen hohen Ladezustand (z.B. über 80 %) hat, ist es ratsam, die Ladeleistung zu reduzieren. Das Laden bei hohen SoC-Werten erzeugt mehr Stress auf die Elektroden des Akkus, was die Degradation beschleunigen kann.
+
+#### 2. **Höhere Ladeleistung bei niedrigem SoC**:
+Bei niedrigem SoC (z.B. unter 30 %) kann der Akku normalerweise höhere Ladeleistungen vertragen, ohne dass dies die Lebensdauer stark beeinträchtigt. In diesem Bereich ist der Innenwiderstand geringer, und der Akku kann effizienter laden.
+
+#### 3. **Vermeiden von 100 %-Ladungen**:
+Li-Ionen-Akkus sollten idealerweise nicht ständig auf 100 % geladen werden, da dies die Degradation beschleunigen kann. Eine Ladegrenze von etwa 80–90 % kann die Lebensdauer verlängern.
+
+#### 4. **Reduzierte Ladeleistung bei niedrigem SoC**:
+Wenn der SoC sehr niedrig ist (z.B. unter 10 %), ist es ebenfalls ratsam, mit einer niedrigeren Ladeleistung zu laden, um die Schädigung der Batterie durch hohe Stromstärken zu vermeiden.
+
+#### 5. **Temperaturabhängiges Laden**:
+Die Ladeleistung sollte auch abhängig von der Temperatur geregelt werden. Bei niedrigen Temperaturen ist es sinnvoll, die Ladeleistung zu reduzieren, da der Akku dann empfindlicher ist.
+
+#### 6. **Adaptive Ladeverfahren**:
+Einige moderne Ladegeräte und Akkumanagementsysteme nutzen adaptive Ladeverfahren, die den Ladeprozess dynamisch an den aktuellen SoC und die Temperatur anpassen, um die Lebensdauer des Akkus zu maximieren.
+
+Durch die Anpassung der Ladeleistung in Abhängigkeit vom SoC kannst du also die Belastung des Akkus minimieren und seine Lebensdauer verlängern. Es ist jedoch wichtig, dass dies in einem gut ausbalancierten Lade- und Energiemanagementsystem erfolgt, um eine optimale Leistung und Lebensdauer zu gewährleisten.
+
 
 # Anleitung # 
 
