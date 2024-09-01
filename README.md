@@ -1,24 +1,51 @@
-# Prognosebasierte & Manuelle Steuerung für Homeassistant von SMA STP SE Hybrid-Wechselrichter #
+
+# Prognosebasierte Steuerung zur schonenden Ladung von Huawei Luna2000 Akkus über HomeAssistant #
 
 **DISCLAMER: Alles auf eigene Gefahr! Ich übernehme keine Verantwortung für Schäden oder Probleme die hiermit entstehen.**
-Dieses Projekt wird in keinster Weise von der Firma SMA begleitet oder supported.
+Ich stehe in keinerlei zusammenhang mit Huawei. Dieses Projekt wird in keinster Weise von der Firma Huawei begleitet oder supported.
+Desweiteren wird von mir **KEIN SUPPORT** geleistet. Ich teile hier lediglich, was ich für mein Szenario aufgebaut hatte.
 
-**Neue Betafirma seit 16.07.2024 stellt wieder die alte Funktionalität her, dass der Wechselrichter direkt über Modbus gesteurt werden kann**
-Grid Guard Code usw. nicht mehr notwendig!
-
-Noch kein Tibber? 50€ Bonus für mich & dich: https://invite.tibber.com/14sk9m15
+Die hier gezeigte Lösung ist sehr stark an die Steuerung von @Optic00 (https://github.com/Optic00/ha-akkusteuerung-sma) angelehnt. Credits für die Vorarbeit gehen an Optic00!
 
 (work in progress, noch nicht vollständig!)
+
+# Einleitung #
+
+Warum sollte eine Steuerung zur schonenden Ladung eines Akkus sinnvoll sein?
+Ganz einfach: Damit man länger etwas von seinem Akku hat.
+
+Beim Luna2000 von Huawei handelt es sich um einen Lithium-Ionen-Akku, welcher die Eigenschaft hat, dass verschiedene Ladegeschwindigkeiten (bzw. Ladeströme) den Akku stressen und schneller altern lassen können.
+Das heißt, dass man die Lebensdauer es Akkus positiv beeinflussen kann, wenn man die Ladeleistung abhängig vom jeweiligen SoC (= State of Charge, Ladezustand) regelt. Dabei sind folgende Eckpunkte zu berücksichtigen:
+#### 1. **Schonendes Laden bei hohen SoC**:
+Wenn der Akku bereits einen hohen Ladezustand (z.B. über 80 %) hat, ist es ratsam, die Ladeleistung zu reduzieren. Das Laden bei hohen SoC-Werten erzeugt mehr Stress auf die Elektroden des Akkus, was die Degradation beschleunigen kann.
+
+#### 2. **Höhere Ladeleistung bei niedrigem SoC**:
+Bei niedrigem SoC (z.B. unter 30 %) kann der Akku normalerweise höhere Ladeleistungen vertragen, ohne dass dies die Lebensdauer stark beeinträchtigt. In diesem Bereich ist der Innenwiderstand geringer, und der Akku kann effizienter laden.
+
+#### 3. **Vermeiden von 100 %-Ladungen**:
+Li-Ionen-Akkus sollten idealerweise nicht ständig auf 100 % geladen werden, da dies die Degradation beschleunigen kann. Eine Ladegrenze von etwa 80–90 % kann die Lebensdauer verlängern.
+
+#### 4. **Reduzierte Ladeleistung bei niedrigem SoC**:
+Wenn der SoC sehr niedrig ist (z.B. unter 10 %), ist es ebenfalls ratsam, mit einer niedrigeren Ladeleistung zu laden, um die Schädigung der Batterie durch hohe Stromstärken zu vermeiden.
+
+#### 5. **Temperaturabhängiges Laden**:
+Die Ladeleistung sollte auch abhängig von der Temperatur geregelt werden. Bei niedrigen Temperaturen ist es sinnvoll, die Ladeleistung zu reduzieren, da der Akku dann empfindlicher ist.
+
+#### 6. **Adaptive Ladeverfahren**:
+Einige moderne Ladegeräte und Akkumanagementsysteme nutzen adaptive Ladeverfahren, die den Ladeprozess dynamisch an den aktuellen SoC und die Temperatur anpassen, um die Lebensdauer des Akkus zu maximieren.
+
+Durch die Anpassung der Ladeleistung in Abhängigkeit vom SoC kannst du also die Belastung des Akkus minimieren und seine Lebensdauer verlängern. Es ist jedoch wichtig, dass dies in einem gut ausbalancierten Lade- und Energiemanagementsystem erfolgt, um eine optimale Leistung und Lebensdauer zu gewährleisten.
+
 
 # Anleitung # 
 
 Was macht das hier eigentlich?
 
-Akkuladesteuerung über den WR selbst (wenn man die Updates früh genug deaktiviert hat ODER die neue Betafirmware für den SHM 2.0 hat)
+Akkuladesteuerung über den WR via Modbus TCP
 
 Ein Part ist die Reine Akku Lade-/Entladesteuerung die man manuell auswählen kann, der andere Part die Opti-Automatik welche die Ladestärke auf 0.2C (oder einen gewünschte Ladestärke) begrenzt, den Akku morgens erstmal auf 50% lädt und dann pausiert bis die gewünschte Restproduktionsprognose erreicht ist. Dann wird der Akku bis 90% weiter mit 0.2C beladen, danach mit 1kW bis 100%.
 
-Es sollte die SMA Integration von HA eingerichtet werde um den SoC des Akkus auslesen zu können sowie ein Solcast Account für die Prognose der PV-Erträge!
+Hilfreich ist die Huawei Solar Integration (https://github.com/wlcrs/huawei_solar), welche sehr einfach die benötigten Entitäten und Sensoren zur verfügung stellt, sowie ein Solcast Account für die Prognose der PV-Erträge!
 
 **opti-automatik.yaml** - Hiermit wird über den SHM 2.0 und freigeschaltetem GGC der Akku mittels der weiteren Automation gezielt geladen, pausiert und zuende geladen mit 0.2C bzw. 1kW. 
 
@@ -39,44 +66,72 @@ Den Eintrag aus der configuration.yaml bei Homeassistant in die gleichnamige ein
 
 Man benötigt einen Sensor der den möglichen Überschuss für den Akku berechnet und einen für den aktuellen Hausverbrauch. 
 
-**Zum Beispiel für den möglichen Akku-Ladeüberschuss:**
 
-    - unique_id: maximaler_ueberschuss_akkuladung
+**Beispiel: Hausverbrauch:**
+
+    - unique_id: hausverbrauchsleistung
       device_class: power
       state_class: measurement
-      name: Maximaler Ueberschuss fuer Akkuladung Watt
+      name: Hausverbrauchsleistung
       unit_of_measurement: W
-      state: "{{ (states('sensor.pv_generation_komplett_watt') | float) - (states('sensor.home_energy_usage_watt') | float) - (states('sensor.sn_xxxxxxx_metering_power_absorbed') | float) + ((states('sensor.goecharger_wallbox_hinten_p_all')  | float )* 1000)  }}"
+      state: >-
+        {% set inv_active_power = states('sensor.inverter_active_power')|float(0) %}
+        {% set pm_active_power = states('sensor.power_meter_active_power')|float(0) %}
+        {% set house_power =  (inv_active_power - pm_active_power)|float(0)|round(0) %}
+        {% if house_power > 0 %}
+          {{ house_power }}
+        {% else %}
+          {{ states('sensor.house_consumption_power')|float(0) }}
+        {% endif %}
+      availability: >-
+        {{ (states('sensor.inverter_active_power')|is_number)
+            and (states('sensor.power_meter_active_power')|is_number) }}
 
-**Zum Beispiel für den PV-Überschuss um ggf. die 70% Kappung zu erkennen**
+**Beispiel: Netzbezug**
 
-    - unique_id: akkusteuerung_ueberschuss_pv
+    - unique_id: power_meter_netzbezug
       device_class: power
       state_class: measurement
-      name: Ueberschuss PV Watt
+      name: "Power meter Netzbezug"
       unit_of_measurement: W
-      state: "{{ (states('sensor.pv_generation_komplett_watt') | float(0) - (states('sensor.home_energy_usage_watt') | float) - (states('sensor.sn_3017XXXXXX_metering_power_absorbed') | float) )  }}"
+      state: >-
+        {% set pm_wirkleistung = states('sensor.power_meter_wirkleistung') | float(0) %}
+        {% if pm_wirkleistung < 0 %}
+          {{ -pm_wirkleistung }}
+        {% else %}
+          {{ 0 }}
+        {% endif %}
 
-**Zum Beispiel für den Hausverbrauch:**
+**Beispiel: PV-Überschuss**
 
-    - unique_id: home_energy_usage_w
+    - unique_id: inverter_pv_ueberschuss
       device_class: power
       state_class: measurement
-      name: Home Energy Usage Watt
+      name: "Inverter PV Überschuss"
       unit_of_measurement: W
-      state: "{{ (states('sensor.sn_3017XXXXXX_metering_power_absorbed') | float) + (states('sensor.sn_3017XXXXXX_grid_power') | float) - (states('sensor.sn_3017XXXXXX_metering_power_supplied') | float)}}"
+      state: "{{ (states('sensor.inverter_eingangsleistung') | float) - (states('sensor.hausverbrauchsleistung') | float) - (states('sensor.power_meter_netzbezug') | float) }}"
 
-**Hier als Extra zwei Sensoren die Wirkungsgrad und Akku_Zyklen in HA trackien**
+**Beispiel: PV-Überschuss für Akku-Ladung (PV-Überschuss zzgl. aktueller Wallbox-Leistung):**
 
-    - unique_id: byd_akku_wirkungsgrad_lade_entlade
-      name: BYD Akku Wirkungsgrad Ladung und Entladung
-      unit_of_measurement: factor
-      state: "{{ ((states('sensor.sn_3017XXXXXX_battery_discharge_total') | float) / (states('sensor.sn_3017XXXXXX_battery_charge_total') | float) * 100) | round(2) }}"
+    - unique_id: inverter_maximaler_ueberschuss_fuer_akkuladung
+      device_class: power
+      state_class: measurement
+      name: Maximaler "Inverter Maximaler Überschuss für Akkuladung"
+      unit_of_measurement: W
+      state: "{{ (states('sensor.inverter_pv_ueberschuss') | float) + (states('sensor.wallbox_ladeleistung')  | float ) }}"
 
-    - unique_id: byd_akku_zyklen
-      name: BYD Akku Zyklen
-      unit_of_measurement: factor
-      state: "{{ (((((states('sensor.sn_3017XXXXXX_battery_discharge_total') | float) + (states('sensor.sn_3017XXXXXX_battery_charge_total') | float)) / 100 ) * (states('sensor.sn_3017XXXXXX_battery_capacity_total')) | float) / (2*10.2) ) | round(1) }}"
+
+**Hier als Extra zwei Sensoren die Wirkungsgrad und Akku-Zyklen in HA trackien**
+
+    - unique_id: battery_wirkungsgrad_entladung_vs_ladung
+      device_class: power_factor
+      name: "Battery Wirkungsgrad (Entladung vs. Ladung)"
+      unit_of_measurement: %
+      state: "{{ ((states('sensor.battery_gesamtentladung') | float) / (states('sensor.battery_gesamtladung') | float) * 100) | round(2) }}"
+
+    - unique_id: battery_kalkulierte_ladezyklen
+      name: "Battery kalkulierte Ladezyklen"
+      state: "{{ (((states('sensor.battery_gesamtentladung') | float) + (states('sensor.battery_gesamtladung') | float)) / ((states('input_number.battery_speicherkapazitaet') | float) *2)) | round(0) }}"
 
 
 dieser HA-Helfer zur Auswahl des Akku-Modus muss angelegt werden:
