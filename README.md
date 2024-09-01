@@ -102,7 +102,7 @@ Folgende Integrationen werden benötigt:
 **[/collaterals/diagramm.pdf](/collaterals/diagramm.pdf)** - Stellt die Steuerlogik dar
 
 Ein Controldashboard (u.a. unter Verwendung der HA-Badges) könnte wie folgt aussehen:
-<img src="https://github.com/madmat17/ha-akkusteuerung-luna2000/blob/main/collaterals/dashboard.jpg">
+<img src="https://github.com/madmat17/ha-akkusteuerung-luna2000/blob/main/collaterals/dashboard.jpg" height="1171px" width="703px">
 
 
 
